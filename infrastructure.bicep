@@ -4,7 +4,7 @@ param appName string = 'expression${uniqueString(resourceGroup().id)}'
 @description('Location for all resources.')
 param location string = resourceGroup().location
 
-param repositoryUrl string = 'url goes here'
+param repositoryUrl string = 'https://github.com/KonTheCat/AzureFunctionDemo-ExpressionEvaluator.git'
 param branch string = 'main'
 
 var functionAppName = appName
