@@ -103,10 +103,6 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
           value: '~4'
         }
         {
-          name: '33thzlmvp6eduazfunctions_STORAGE' 
-          value: 'DefaultEndpointsProtocol=https;AccountName=33thzlmvp6eduazfunctions;AccountKey=KcBPu/0bNlZnUi75J4pOTOI9AAJjslfMEdLtKHE3u944UghHUI5UyQOGxtGPAAoO2FlTJlibJmkP+ASt5LIKew==;EndpointSuffix=core.windows.net'
-        }
-        {
           name: 'blobTrigger_STORAGE' 
           value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
         }
