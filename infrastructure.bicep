@@ -1,5 +1,5 @@
 @description('The name of the function app that you wish to create.')
-param appName string = 'ex-${uniqueString(resourceGroup().id)}'
+param appName string = 'expression${uniqueString(resourceGroup().id)}'
 
 @description('Location for all resources.')
 param location string = resourceGroup().location
@@ -9,10 +9,8 @@ var hostingPlanName = appName
 var applicationInsightsName = appName
 var storageAccountName = '${uniqueString(resourceGroup().id)}azfunctions'
 var storageAccountType = 'Standard_LRS'
-var StorageBlobDataReaderRoleID = '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
-var StorageBlobDataContributorRoleID = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
-var StorageBlobDataOwnerRoleID = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
-var KeyVaultSecretsUserRoleID = '4633458b-17de-408a-b874-0445c86b69e6'
+var BlobDataReaderRoleID = '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
+var BlobDataContributorID = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
   name: storageAccountName
@@ -50,34 +48,6 @@ resource answersContainer 'Microsoft.Storage/storageAccounts/blobServices/contai
   }
 }
 
-resource keyvault 'Microsoft.KeyVault/vaults@2023-02-01' = {
-  name: 'kv${appName}'
-  location: location
-  properties: {
-    sku: {
-      name: 'standard'
-      family: 'A'
-    }
-    tenantId: subscription().tenantId
-    enableSoftDelete: false
-    enableRbacAuthorization: true
-    enabledForTemplateDeployment: true
-  }
-}
-
-resource keyvaultReadingIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: 'mi${appName}'
-  location: location
-}
-
-resource functionsStorageAccountConnectionString 'Microsoft.KeyVault/vaults/secrets@2023-02-01' = {
-  name: 'functionsStorageAccountConnectionString-${storageAccountName}'
-  parent: keyvault
-  properties: {
-    value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
-  }
-}
-
 resource hostingPlan 'Microsoft.Web/serverfarms@2021-03-01' = {
   name: hostingPlanName
   location: location
@@ -101,20 +71,13 @@ resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
 }
 
 resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
-  dependsOn: [
-    roleAssignmentStorageConnectionStringSecret
-  ]
   name: functionAppName
   location: location
   kind: 'functionapp'
   identity: {
-    type: 'SystemAssigned, UserAssigned'
-    userAssignedIdentities: {
-      '${keyvaultReadingIdentity.id}': {}
-    }
+    type: 'SystemAssigned'
   }
   properties: {
-    keyVaultReferenceIdentity: keyvaultReadingIdentity.id
     httpsOnly: true
     serverFarmId: hostingPlan.id
     siteConfig: {
@@ -128,12 +91,12 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
       minTlsVersion: '1.2'
       appSettings: [
         {
-          name: 'AzureWebJobsStorage__accountName'
-          value: storageAccountName
+          name: 'AzureWebJobsStorage'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
         }
         {
           name: 'WEBSITE_CONTENTAZUREFILECONNECTIONSTRING'
-          value: '@Microsoft.KeyVault(SecretUri=${functionsStorageAccountConnectionString.properties.secretUri})'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
         }
         {
           name: 'FUNCTIONS_EXTENSION_VERSION'
@@ -141,7 +104,7 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
         }
         {
           name: 'blobTrigger_STORAGE' 
-          value: '@Microsoft.KeyVault(SecretUri=${functionsStorageAccountConnectionString.properties.secretUri})'
+          value: 'DefaultEndpointsProtocol=https;AccountName=${storageAccountName};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storageAccount.listKeys().keys[0].value}'
         }
         {
           name: 'APPINSIGHTS_INSTRUMENTATIONKEY'
@@ -172,45 +135,21 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
   }
 }
 
-//this is needed by Azure Functions to use Storage Account for Azure Functions needs
-resource roleAssignmentStorageAccount 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(resourceGroup().id, storageAccount.id, StorageBlobDataOwnerRoleID)
-  scope: storageAccount
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', StorageBlobDataOwnerRoleID)
-    principalId: functionApp.identity.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-//this is needed by Azure Functions to read the storage account connection string
-resource roleAssignmentStorageConnectionStringSecret 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(resourceGroup().id, keyvault.id, KeyVaultSecretsUserRoleID)
-  scope: functionsStorageAccountConnectionString
-  properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', KeyVaultSecretsUserRoleID)
-    principalId: keyvaultReadingIdentity.properties.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-//this is needed by blob trigger to read files in a particular container
 resource roleAssignmentQuestionsContainer 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(resourceGroup().id, storageAccount.id, StorageBlobDataReaderRoleID)
+  name: guid(resourceGroup().id, functionApp.id, BlobDataReaderRoleID)
   scope: questionsContainer
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', StorageBlobDataReaderRoleID)
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', BlobDataReaderRoleID)
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
   }
 }
 
-//this is needed by blob trigger to write files to a particular container
 resource roleAssignmentAnswersContainer 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(resourceGroup().id, storageAccount.id, StorageBlobDataContributorRoleID)
+  name: guid(resourceGroup().id, functionApp.id, BlobDataContributorID)
   scope: answersContainer
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', StorageBlobDataContributorRoleID)
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', BlobDataContributorID)
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
   }
