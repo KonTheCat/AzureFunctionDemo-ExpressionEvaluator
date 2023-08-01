@@ -36,6 +36,8 @@ def main(myblob: func.InputStream):
     credential = get_credential()
     expression = get_blob_data(storageAccountName, credential, questionsContainerName, name)
     result = eval(expression)
-    logging.info(f'{expression} = {result}') 
+    data = f'{expression} = {result}'
+    logging.info(data)
+    set_blob_data(data, storageAccountName, credential, answersContainerName, name)
     
 
