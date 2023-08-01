@@ -16,6 +16,10 @@ $rg = New-AzResourceGroup -ResourceGroupName "ExpressionEvaluator" -Location "Ea
 New-AzResourceGroupDeployment -TemplateFile .\infrastructure.bicep -Location $rg.Location -ResourceGroupName $rg.ResourceGroupName -Verbose
 ```
 3. Deploy from Visual Studio Code: https://learn.microsoft.com/en-us/azure/azure-functions/functions-develop-vs-code?tabs=csharp#republish-project-files
+4. Cleanup can be accomplished by something like the below:
+```
+Get-AzResourceGroup -ResourceGroupName ExpressionEvaluator* | Remove-AzResourceGroup -Force -AsJob; Get-Job | Wait-Job | Receive-Job
+```
 
 # Sources
 
