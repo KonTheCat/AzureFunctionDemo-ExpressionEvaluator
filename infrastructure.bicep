@@ -11,6 +11,7 @@ var storageAccountName = '${uniqueString(resourceGroup().id)}azfunctions'
 var storageAccountType = 'Standard_LRS'
 var BlobDataReaderRoleID = '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
 var BlobDataContributorID = 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+var serviceBusNamespaceName = '${uniqueString(resourceGroup().id)}bus'
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
   name: storageAccountName
@@ -47,6 +48,51 @@ resource answersContainer 'Microsoft.Storage/storageAccounts/blobServices/contai
     publicAccess: 'None'
   }
 }
+
+resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-01-01-preview' = {
+  name: serviceBusNamespaceName
+  location: location
+  sku: {
+    name: 'Basic'
+  }
+  properties: {
+  }
+}
+
+resource questionsQueue 'Microsoft.ServiceBus/namespaces/queues@2022-01-01-preview' = {
+  parent: serviceBusNamespace
+  name: 'questions'
+  properties: {
+    lockDuration: 'PT5M'
+    maxSizeInMegabytes: 1024
+    requiresDuplicateDetection: false
+    requiresSession: false
+    deadLetteringOnMessageExpiration: false
+    duplicateDetectionHistoryTimeWindow: 'PT10M'
+    maxDeliveryCount: 10
+    enablePartitioning: false
+    enableExpress: false
+  }
+}
+
+resource answersQueue 'Microsoft.ServiceBus/namespaces/queues@2022-01-01-preview' = {
+  parent: serviceBusNamespace
+  name: 'answers'
+  properties: {
+    lockDuration: 'PT5M'
+    maxSizeInMegabytes: 1024
+    requiresDuplicateDetection: false
+    requiresSession: false
+    deadLetteringOnMessageExpiration: false
+    duplicateDetectionHistoryTimeWindow: 'PT10M'
+    maxDeliveryCount: 10
+    enablePartitioning: false
+    enableExpress: false
+  }
+}
+
+var serviceBusEndpoint = '${serviceBusNamespace.id}/AuthorizationRules/RootManageSharedAccessKey'
+var serviceBusConnectionString = listKeys(serviceBusEndpoint, '2022-01-01-preview').primaryConnectionString
 
 resource hostingPlan 'Microsoft.Web/serverfarms@2021-03-01' = {
   name: hostingPlanName
@@ -129,6 +175,10 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
         {
           name: 'answersContainerName'
           value: answersContainer.name
+        }
+        {
+          name: 'servicebus'
+          value: serviceBusConnectionString
         }
       ]
     }

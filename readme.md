@@ -1,6 +1,6 @@
 # What this Is
 
-This is a teaching/demonstration model of a Consumption-tier Azure Function in Python. It is intended to demonstrate different triggers by getting from the trigger an expression to be evaluated and running it through the Python eval() function.
+This is a teaching/demonstration model of a Consumption-tier Azure Function in Python. It is intended to demonstrate different triggers by getting from the trigger an expression to be evaluated and running it through the Python eval() function. This teaching model focuses on demonstrating capability rather than best practice security, no effort is made to use identity-based authentication where doing so is substantially complicated, but every effort is made to use the cheapest service SKUs possible. 
 
 Please note that this allows for code injection and thus should not be used in any production setting: https://vk9-sec.com/exploiting-python-eval-code-injection/
 
