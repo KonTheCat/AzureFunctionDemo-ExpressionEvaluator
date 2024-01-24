@@ -1,0 +1,10 @@
+import azure.functions as func
+import logging 
+from http_expression_evaluator import bp_http_expression_evaluator
+from blob_expression_evaluator import bp_blob_expression_evaluator
+from service_bus_expression_evaluator import bp_service_bus_expression_evaluator
+
+app = func.FunctionApp()
+app.register_functions(bp_http_expression_evaluator)
+app.register_functions(bp_blob_expression_evaluator)
+app.register_functions(bp_service_bus_expression_evaluator)
